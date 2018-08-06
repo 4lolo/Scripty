@@ -7,11 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Scripty.Core\Scripty.Core.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="System.CommandLine, Version=0.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
-      <HintPath>..\..\lib\System.CommandLine\System.CommandLine.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\System.CommandLine\System.CommandLine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />

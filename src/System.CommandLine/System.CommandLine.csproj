@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>CLI commandline command parsing</Description>
+    <TargetFrameworks>net472</TargetFrameworks>
+    <PackageTags>Command line parsing support corefxlab</PackageTags>
+    <RootNamespace />
+    <LangVersion>7.1</LangVersion>
+  </PropertyGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.5' ">
+    <PackageReference Include="System.Runtime.Extensions" Version="$(CoreFxVersion)" />
+  </ItemGroup>
+</Project>

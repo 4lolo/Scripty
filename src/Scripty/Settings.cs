@@ -16,7 +16,7 @@ namespace Scripty
       
         private IReadOnlyList<KeyValuePair<string, string>> _properties;
 
-        public bool ParseArgs(string[] args, out bool hasErrors)
+        public bool ParseArgs(string[] args)
         {
             System.CommandLine.ArgumentSyntax parsed = System.CommandLine.ArgumentSyntax.Parse(args, syntax =>
             {
@@ -40,8 +40,7 @@ namespace Scripty
                 Properties = props;
             }
 
-            hasErrors = parsed.HasErrors;
-            return !(parsed.IsHelpRequested() || hasErrors);
+            return true;
         }
 
         private KeyValuePair<string, string> ParseProperty(string argument)

@@ -224,6 +224,6 @@ namespace Scripty.Core
             return null;
         }
         
-        private static readonly string[] Frameworks = { "net11", "net20", "net35", "net40", "net403", "net45", "net451", "net452", "net46", "net461", "net462", "net47", "net471", "net472" };
+        private static readonly string[] Frameworks = { "net11", "net20", "net35", "net40", "net403", "portable-net45", "net45", "net451", "net452", "net46", "net461", "net462", "net47", "net471", "net472" };
     }
 }

@@ -53,11 +53,7 @@ namespace Scripty
             {
                 try
                 {
-                    bool hasParseArgsErrors;
-                    if (!_settings.ParseArgs(args, out hasParseArgsErrors))
-                    {
-                        return hasParseArgsErrors ? (int) ExitCode.CommandLineError : (int) ExitCode.Normal;
-                    }
+                    _settings.ParseArgs(args);
                 }
                 catch (Exception ex)
                 {
