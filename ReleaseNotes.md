@@ -1,3 +1,7 @@
+# 0.7.6
+
+- [Fix] Nuget config was created during generation
+
 # 0.7.5
 
 - [Feature] Paths of nuget packages are added to metadata resolver
