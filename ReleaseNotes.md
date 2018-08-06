@@ -1,3 +1,7 @@
+# 0.7.5
+
+- [Feature] Paths of nuget packages are added to metadata resolver
+
 # 0.7.4
 
 - [Fix] Fixed Cake addin target version (#95, thanks @crash-dive)
