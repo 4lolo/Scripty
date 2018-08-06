@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>Scripty.Core</id>
+    <id>ScriptyPlus.Core</id>
     <version>$version$</version>
-    <title>Scripty.Core</title>
+    <title>ScriptyPlus.Core</title>
     <authors>Dave Glick</authors>
     <owners>Dave Glick</owners>
     <licenseUrl>https://github.com/4lolo/Scripty/blob/master/LICENSE</licenseUrl>

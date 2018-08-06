@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package>
   <metadata>
-    <id>Scripty.MsBuild</id>
+    <id>ScriptyPlus.MsBuild</id>
     <version>$version$</version>
-    <title>Scripty.MsBuild</title>
+    <title>ScriptyPlus.MsBuild</title>
     <authors>Dave Glick</authors>
     <owners>Dave Glick</owners>
     <licenseUrl>https://github.com/4lolo/Scripty/blob/master/LICENSE</licenseUrl>
