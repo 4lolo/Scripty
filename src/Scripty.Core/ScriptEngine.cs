@@ -152,8 +152,7 @@ namespace Scripty.Core
 
         private IEnumerable<string> ResolveSearchPaths()
         {
-            ISettings s = new Settings("configuration", @"NuGet.Config");
-            string nugetBasePath = SettingsUtility.GetGlobalPackagesFolder(s);
+            string nugetBasePath = SettingsUtility.GetGlobalPackagesFolder(new NullSettings());
 
             yield return nugetBasePath;
 
