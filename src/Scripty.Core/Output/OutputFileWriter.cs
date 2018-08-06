@@ -2,15 +2,14 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Options;
 
 namespace Scripty.Core.Output
 {
     internal class OutputFileWriter : OutputFile
     {
         private readonly TextWriter _textWriter;
-        private int _indentLevel = 0;
-        private bool _indentNextWrite = false;  // Only indent the first write after a WriteLine() call
+        private int _indentLevel;
+        private bool _indentNextWrite;  // Only indent the first write after a WriteLine() call
         private BuildAction _buildAction;
 
         internal OutputFileWriter(string filePath)

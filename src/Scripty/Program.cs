@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Scripty.Core;
@@ -26,7 +25,7 @@ namespace Scripty
         {
             if (_settings.MessagesEnabled)
             {
-                Console.Error.WriteLine(string.Format("{0}|{1}", type, message));
+                Console.Error.WriteLine($"{type}|{message}");
             }
             else if (type == MessageType.Error)
             {
@@ -136,7 +135,7 @@ namespace Scripty
             // Evaluate all the scripts
             try
             {
-                Task.WaitAll(tasks.ToArray());
+                Task.WaitAll(tasks.Cast<Task>().ToArray());
             }
             catch (AggregateException aggregateException)
             {

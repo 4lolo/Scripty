@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Microsoft.CodeAnalysis.MSBuild;
 using Scripty.Core.Output;
 using Scripty.Core.ProjectTree;
 using System.Collections.Generic;

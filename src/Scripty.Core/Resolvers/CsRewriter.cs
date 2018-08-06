@@ -1,4 +1,6 @@
-﻿namespace Scripty.Core.Resolvers
+﻿using Microsoft.CodeAnalysis.Emit;
+
+namespace Scripty.Core.Resolvers
 {
     using System;
     using System.Collections.Generic;
@@ -18,13 +20,13 @@
     /// </summary>
     public class CsRewriter
     {
-        public const string DEFAULT_REWRITE_TEMP_EXTENSION = ".rewrite.tmp";
-        public const string DEFAULT_REWRITE_EXTENSION = ".rewrite";
-        public const string DEFAULT_DLL_EXTENSION = ".dll";
-        public const string DEFAULT_PDB_EXTENSION = ".pdb";
+        public const string DefaultRewriteTempExtension = ".rewrite.tmp";
+        public const string DefaultRewriteExtension = ".rewrite";
+        public const string DefaultDllExtension = ".dll";
+        public const string DefaultPdbExtension = ".pdb";
 
 
-        private static readonly CSharpParseOptions _defaultParseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
+        private static readonly CSharpParseOptions DefaultParseOptions = CSharpParseOptions.Default.WithKind(SourceCodeKind.Script);
 
         /// <summary>
         ///     Creates a copy of the original file, without the things the <see cref="CSharpScript"/> resolver
@@ -42,29 +44,29 @@
         {
             FileUtilities.RemoveIfPresent(rewriteCandidate.RewrittenFilePath);
 
-            var targetFileStream = new StreamWriter(rewriteCandidate.RewrittenFilePath);
+            StreamWriter targetFileStream = new StreamWriter(rewriteCandidate.RewrittenFilePath);
 
             try
             {
-                using (var sr = new StreamReader(rewriteCandidate.OriginalFilePath))
+                using (StreamReader sr = new StreamReader(rewriteCandidate.OriginalFilePath))
                 {
                     //maybe there is a better way to do this aside from counting braces?
                     //http://stackoverflow.com/questions/32769630/how-to-compile-a-c-sharp-file-with-roslyn-programmatically
-                    var braceDepth = 0;
+                    int braceDepth = 0;
 
-                    var inBlockComment = false;
-                    var inNamespace = false;
+                    bool inBlockComment = false;
+                    bool inNamespace = false;
 
                     while (sr.EndOfStream == false)
                     {
-                        var line = sr.ReadLine();
+                        string line = sr.ReadLine();
                         if (line == null)
                         {
                             break;
                         }
 
-                        var trimStart = line.TrimStart();
-                        var trimEnd = line.TrimEnd();
+                        string trimStart = line.TrimStart();
+                        string trimEnd = line.TrimEnd();
 
                         if (trimStart.StartsWith("//"))
                         {
@@ -90,14 +92,14 @@
                             continue;
                         }
 
-                        var openingBraceCountForThisLine = trimStart.Length - trimStart.Replace("{", string.Empty).Length;
-                        var closingBraceCountForThisLine = trimStart.Length - trimStart.Replace("}", string.Empty).Length;
+                        int openingBraceCountForThisLine = trimStart.Length - trimStart.Replace("{", string.Empty).Length;
+                        int closingBraceCountForThisLine = trimStart.Length - trimStart.Replace("}", string.Empty).Length;
 
                         // ReSharper disable StringIndexOfIsCultureSpecific.1
                         if (trimStart.IndexOf("namespace") >= 0)
                         // ReSharper restore StringIndexOfIsCultureSpecific.1
                         {
-                            var stackedNamespaces = BuildStackedNamespacePaths(trimStart);
+                            List<string> stackedNamespaces = BuildStackedNamespacePaths(trimStart);
                             targetFileStream.WriteLine(stackedNamespaces.Select(n => $"using {n};"));
                             inNamespace = true;
                             braceDepth += openingBraceCountForThisLine;
@@ -150,36 +152,36 @@
         /// </returns>
         public static RewrittenAssembly CreateRewriteFileAsAssembly(string rewriteCandidateFilePath)
         {
-            var rewriteCandidate = new RewrittenAssembly { OriginalFilePath = rewriteCandidateFilePath };
+            RewrittenAssembly rewriteCandidate = new RewrittenAssembly { OriginalFilePath = rewriteCandidateFilePath };
 
-            var csExtraction = ExtractCompilationDetailFromClassFile(rewriteCandidateFilePath);
+            CsExtraction csExtraction = ExtractCompilationDetailFromClassFile(rewriteCandidateFilePath);
             if (csExtraction.Errors.IsEmpty == false)
             {
                 return rewriteCandidate;
             }
 
-            var referencedAssemblies = new List<Assembly>();
-            var executingAssembly = Assembly.GetExecutingAssembly();
-            var callingAssembly = Assembly.GetCallingAssembly();
+            List<Assembly> referencedAssemblies = new List<Assembly>();
+            Assembly executingAssembly = Assembly.GetExecutingAssembly();
+            Assembly callingAssembly = Assembly.GetCallingAssembly();
             referencedAssemblies.Add(executingAssembly);
             referencedAssemblies.Add(callingAssembly);
 
-            var listOfUsings = GetListOfNamespaces(csExtraction.Namespaces, referencedAssemblies);
-            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithUsings(listOfUsings);
-            var metadataReferences = GetMetadataReferences(executingAssembly, callingAssembly);
-            var rewriteAssemblyPaths = GetRewriteAssemblyPaths(rewriteCandidateFilePath);
+            List<string> listOfUsings = GetListOfNamespaces(csExtraction.Namespaces, referencedAssemblies);
+            CSharpCompilationOptions options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithUsings(listOfUsings);
+            List<MetadataReference> metadataReferences = GetMetadataReferences(executingAssembly, callingAssembly);
+            AsmDetail rewriteAssemblyPaths = GetRewriteAssemblyPaths(rewriteCandidateFilePath);
 
-            var compilation = CSharpCompilation.Create(
+            CSharpCompilation compilation = CSharpCompilation.Create(
                 rewriteAssemblyPaths.AsmName,
                 csExtraction.CompilationTargets.ToArray(),
                 metadataReferences.ToArray(),
                 options
             );
 
-            using (var dllStream = new MemoryStream())
-            using (var pdbStream = new MemoryStream())
+            using (MemoryStream dllStream = new MemoryStream())
+            using (MemoryStream pdbStream = new MemoryStream())
             {
-                var emitResult = compilation.Emit(dllStream, pdbStream);
+                EmitResult emitResult = compilation.Emit(dllStream, pdbStream);
 
                 //success sometimes was false when there are warnings, but i didnt write it down
                 // so maybe it was a specific kind. Or I should pay more attention.
@@ -203,58 +205,58 @@
 
         public static CsExtraction ExtractCompilationDetailFromClassFile(string rewriteCandidateFilePath)
         {
-            var scriptCode = FileUtilities.GetFileContent(rewriteCandidateFilePath);
-            var mainCompilationUnit = GetRootMainCompilationUnit(scriptCode);
+            string scriptCode = FileUtilities.GetFileContent(rewriteCandidateFilePath);
+            CompilationUnitSyntax mainCompilationUnit = GetRootMainCompilationUnit(scriptCode);
             if (mainCompilationUnit == null)
             {
                 return new CsExtraction(new List<string> { "Could not get main compilation unit" }, rewriteCandidateFilePath);
             }
 
-            var metadataReferences = GetMetadataReferenceAssemblies(scriptCode);
+            IEnumerable<MetadataReference> metadataReferences = GetMetadataReferenceAssemblies(scriptCode);
 
-            var namespaceMembersToCompile = new List<SyntaxTree>();
-            var allUsingsAcrossCompilationUnit = new List<UsingDirectiveSyntax>();
+            List<SyntaxTree> namespaceMembersToCompile = new List<SyntaxTree>();
+            List<UsingDirectiveSyntax> allUsingsAcrossCompilationUnit = new List<UsingDirectiveSyntax>();
 
             allUsingsAcrossCompilationUnit.AddRange(mainCompilationUnit.Usings);
 
-            var mcuNamespaces = mainCompilationUnit.Members.Where(m => m.IsKind(SyntaxKind.NamespaceDeclaration));
-            foreach (var mcuNamespace in mcuNamespaces)
+            IEnumerable<MemberDeclarationSyntax> mcuNamespaces = mainCompilationUnit.Members.Where(m => m.IsKind(SyntaxKind.NamespaceDeclaration));
+            foreach (MemberDeclarationSyntax mcuNamespace in mcuNamespaces)
             {
-                var usingsForThisCompilationUnit = new List<UsingDirectiveSyntax>(mainCompilationUnit.Usings);
+                List<UsingDirectiveSyntax> usingsForThisCompilationUnit = new List<UsingDirectiveSyntax>(mainCompilationUnit.Usings);
 
-                var namespaceDeclarationSyntax = mcuNamespace as NamespaceDeclarationSyntax;
+                NamespaceDeclarationSyntax namespaceDeclarationSyntax = mcuNamespace as NamespaceDeclarationSyntax;
                 if (namespaceDeclarationSyntax == null)
                 {
                     continue;
                 }
 
-                var outsideOfNamespaceUsings = namespaceDeclarationSyntax.Usings.ToList();
+                List<UsingDirectiveSyntax> outsideOfNamespaceUsings = namespaceDeclarationSyntax.Usings.ToList();
                 allUsingsAcrossCompilationUnit.AddRange(outsideOfNamespaceUsings);
                 usingsForThisCompilationUnit.AddRange(outsideOfNamespaceUsings);
 
-                foreach (var member in namespaceDeclarationSyntax.Members)
+                foreach (MemberDeclarationSyntax member in namespaceDeclarationSyntax.Members)
                 {
-                    var msyntaxTree = CSharpSyntaxTree.ParseText(member.GetText(), _defaultParseOptions);
-                    var memberRoot = msyntaxTree.GetRoot();
-                    var insideTheNamespaceMember = memberRoot as CompilationUnitSyntax;
+                    SyntaxTree msyntaxTree = CSharpSyntaxTree.ParseText(member.GetText(), DefaultParseOptions);
+                    SyntaxNode memberRoot = msyntaxTree.GetRoot();
+                    CompilationUnitSyntax insideTheNamespaceMember = memberRoot as CompilationUnitSyntax;
                     if (insideTheNamespaceMember == null)
                     {
                         continue;
                     }
 
-                    var innerNamespaceUsings = insideTheNamespaceMember.Usings.ToList();
+                    List<UsingDirectiveSyntax> innerNamespaceUsings = insideTheNamespaceMember.Usings.ToList();
                     allUsingsAcrossCompilationUnit.AddRange(innerNamespaceUsings);
                     usingsForThisCompilationUnit.AddRange(innerNamespaceUsings);
 
-                    var classDeclarations = insideTheNamespaceMember.Members.Where(c => c.IsKind(SyntaxKind.ClassDeclaration));
+                    IEnumerable<MemberDeclarationSyntax> classDeclarations = insideTheNamespaceMember.Members.Where(c => c.IsKind(SyntaxKind.ClassDeclaration));
 
-                    foreach (var classDecl in classDeclarations)
+                    foreach (MemberDeclarationSyntax classDecl in classDeclarations)
                     {
-                        var ccu = classDecl.SyntaxTree.GetCompilationUnitRoot();
+                        CompilationUnitSyntax ccu = classDecl.SyntaxTree.GetCompilationUnitRoot();
 
                         // a few days wasted... 
                         //ccu.Usings.AddRange(usingsForThisCompilationUnit); lol, nope
-                        foreach (var u in usingsForThisCompilationUnit)
+                        foreach (UsingDirectiveSyntax u in usingsForThisCompilationUnit)
                         {
                             //ccu.Usings.Add(u); // not that either
                             //ccu.AddUsings(u); // that doesn't work
@@ -270,14 +272,14 @@
                             ccu = ccu.AddUsings(SyntaxFactory.UsingDirective(u.Name).NormalizeWhitespace());
                         }
                         
-                        var classDeclSyntaxTree = CSharpSyntaxTree.Create(ccu, _defaultParseOptions);
+                        SyntaxTree classDeclSyntaxTree = CSharpSyntaxTree.Create(ccu, DefaultParseOptions);
                         namespaceMembersToCompile.Add(classDeclSyntaxTree);
                     }
                 }
             }
 
-            var references = metadataReferences as MetadataReference[] ?? metadataReferences.ToArray();
-            var allNamespaces = GetListOfNamespaces(allUsingsAcrossCompilationUnit.Select(u => u.Name.ToString()), metadataReferences: references);
+            MetadataReference[] references = metadataReferences as MetadataReference[] ?? metadataReferences.ToArray();
+            List<string> allNamespaces = GetListOfNamespaces(allUsingsAcrossCompilationUnit.Select(u => u.Name.ToString()), metadataReferences: references);
             
             return new CsExtraction(references, namespaceMembersToCompile, allNamespaces, rewriteCandidateFilePath);
         }
@@ -291,7 +293,7 @@
         /// </returns>
         private static CompilationUnitSyntax GetRootMainCompilationUnit(string scriptCode)
         {
-            var mainSyntaxTree = CSharpSyntaxTree.ParseText(scriptCode, _defaultParseOptions);
+            SyntaxTree mainSyntaxTree = CSharpSyntaxTree.ParseText(scriptCode, DefaultParseOptions);
 
             SyntaxNode mainSyntaxTreeRoot;
             if (mainSyntaxTree.TryGetRoot(out mainSyntaxTreeRoot) == false)
@@ -299,7 +301,7 @@
                 return null;
             }
 
-            var mainCompilationUnit = mainSyntaxTreeRoot as CompilationUnitSyntax;
+            CompilationUnitSyntax mainCompilationUnit = mainSyntaxTreeRoot as CompilationUnitSyntax;
             if (mainCompilationUnit == null)
             {
                 return null;
@@ -309,8 +311,8 @@
 
         private static IEnumerable<MetadataReference> GetMetadataReferenceAssemblies(string codeAsScript)
         {
-            var compilation = CSharpScript.Create(codeAsScript).GetCompilation();
-            var metadataReferences = compilation.References.Where(r => r.Properties.Kind == MetadataImageKind.Assembly);
+            Compilation compilation = CSharpScript.Create(codeAsScript).GetCompilation();
+            IEnumerable<MetadataReference> metadataReferences = compilation.References.Where(r => r.Properties.Kind == MetadataImageKind.Assembly);
             return metadataReferences;
         }
 
@@ -322,7 +324,7 @@
         /// <returns></returns>
         private static List<MetadataReference> GetMetadataReferences(Assembly executingAssembly, Assembly callingAssembly)
         {
-            var metadataReferences = new List<MetadataReference>();
+            List<MetadataReference> metadataReferences = new List<MetadataReference>();
             metadataReferences.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
             metadataReferences.Add(MetadataReference.CreateFromFile(typeof(DataSet).Assembly.Location));
             metadataReferences.Add(MetadataReference.CreateFromFile(typeof(ScriptContext).Assembly.Location));
@@ -334,17 +336,17 @@
         private static List<string> GetListOfNamespaces(IEnumerable<string> namespacesToUseVerbatim = null, IEnumerable<Assembly> assemblies = null,
             IEnumerable<MetadataReference> metadataReferences = null)
         {
-            var listOfUsings = new List<string>();
+            List<string> listOfUsings = new List<string>();
             if (namespacesToUseVerbatim != null)
             {
                 listOfUsings.AddRange(namespacesToUseVerbatim.Distinct());
             }
             
-            var asmList = new List<Assembly>();
+            List<Assembly> asmList = new List<Assembly>();
 
             if (metadataReferences != null)
             {
-                foreach (var mr in metadataReferences)
+                foreach (MetadataReference mr in metadataReferences)
                 {
                     asmList.Add(mr.GetType().Assembly);
                 }
@@ -355,13 +357,13 @@
                 asmList.AddRange(assemblies);
             }
             
-            foreach (var asm in asmList)
+            foreach (Assembly asm in asmList)
             {
-                var asmNs = asm.GetTypes()
+                IEnumerable<string> asmNs = asm.GetTypes()
                     .Where(t => string.IsNullOrWhiteSpace(t.Namespace) == false)
                     .Select(t => t.Namespace).Distinct();
 
-                foreach (var eans in asmNs)
+                foreach (string eans in asmNs)
                 {
                     if (listOfUsings.Contains(eans))
                     {
@@ -387,12 +389,12 @@
         /// </example>
         private static List<string> BuildStackedNamespacePaths(string trimStartNamespace)
         {
-            var namespaceValue = trimStartNamespace.Replace("namespace", string.Empty).Trim();
-            var endRemoved = namespaceValue.Split(' ');
-            var parts = endRemoved[0].Split('.');
-            var partsAsBuilt = new StringBuilder();
-            var returnValue = new List<string>();
-            foreach (var part in parts)
+            string namespaceValue = trimStartNamespace.Replace("namespace", string.Empty).Trim();
+            string[] endRemoved = namespaceValue.Split(' ');
+            string[] parts = endRemoved[0].Split('.');
+            StringBuilder partsAsBuilt = new StringBuilder();
+            List<string> returnValue = new List<string>();
+            foreach (string part in parts)
             {
                 partsAsBuilt.Append(part);
                 returnValue.Add(partsAsBuilt.ToString());
@@ -409,7 +411,7 @@
         /// <returns></returns>
         public static string GetRewriteFilePath(string normalizedPath)
         {
-            return $"{normalizedPath}.{Path.GetRandomFileName()}{DEFAULT_REWRITE_TEMP_EXTENSION}";
+            return $"{normalizedPath}.{Path.GetRandomFileName()}{DefaultRewriteTempExtension}";
         }
 
         /// <summary>
@@ -419,14 +421,14 @@
         /// <returns></returns>
         public static AsmDetail GetRewriteAssemblyPaths(string normalizedPath)
         {
-            var name = $"{Path.GetRandomFileName()}.{DEFAULT_REWRITE_EXTENSION}";
-            var basePath = $"{normalizedPath}.{name}";
+            string name = $"{Path.GetRandomFileName()}.{DefaultRewriteExtension}";
+            string basePath = $"{normalizedPath}.{name}";
 
             return new AsmDetail
             {
                 AsmName = name,
-                DllPath = $"{basePath}.{DEFAULT_DLL_EXTENSION}",
-                PdbPath = $"{basePath}{DEFAULT_PDB_EXTENSION}"
+                DllPath = $"{basePath}.{DefaultDllExtension}",
+                PdbPath = $"{basePath}{DefaultPdbExtension}"
             };
         }
 

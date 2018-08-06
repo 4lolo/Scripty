@@ -2,28 +2,33 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Formatting;
+using System.Xml.Linq;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.CodeAnalysis.Text;
+using NuGet.Configuration;
+using NuGet.PackageManagement;
+using NuGet.Packaging;
+using NuGet.Packaging.Core;
+using NuGet.Protocol;
+using NuGet.Protocol.Core.Types;
+using NuGet.Versioning;
+using Scripty.Core.Output;
 using Scripty.Core.ProjectTree;
+using Scripty.Core.Resolvers;
 
 namespace Scripty.Core
 {
-    using System.Collections;
-    using System.Reflection;
-    using Output;
-    using Resolvers;
-
     public class ScriptEngine
     {
+        private const string TargetFramework = "net462";
+        
         private readonly string _projectFilePath;
-
-        public ScriptEngine(string projectFilePath)
-            : this(projectFilePath, null, null, null)
-        {
-        }
 
         public ScriptEngine(string projectFilePath, string solutionFilePath, 
 					IReadOnlyDictionary<string, string> properties,
@@ -56,28 +61,31 @@ namespace Scripty.Core
 
         public async Task<ScriptResult> Evaluate(ScriptSource source)
         {
-            var resolver = new InterceptDirectiveResolver();
-            var assembliesToRef = new List<Assembly>
+            ScriptMetadataResolver metadataResolver = ScriptMetadataResolver.Default
+                .WithSearchPaths(this.ResolveSearchPaths());
+            InterceptDirectiveResolver sourceResolver = new InterceptDirectiveResolver();
+            List<Assembly> assembliesToRef = new List<Assembly>
             {
                 typeof(object).Assembly, //mscorlib
-                typeof(Microsoft.CodeAnalysis.Project).Assembly, // Microsoft.CodeAnalysis.Workspaces
+                typeof(Project).Assembly, // Microsoft.CodeAnalysis.Workspaces
                 typeof(Microsoft.Build.Evaluation.Project).Assembly, // Microsoft.Build
                 typeof(ScriptEngine).Assembly // Scripty.Core
             };
 
-            var namepspaces = new List<string>
+            List<string> namepspaces = new List<string>
             {
-                 "System",
+                "System",
                 "Scripty.Core",
                 "Scripty.Core.Output",
                 "Scripty.Core.ProjectTree"
             };
 
-            var options = ScriptOptions.Default
+            ScriptOptions options = ScriptOptions.Default
                 .WithFilePath(source.FilePath)
                 .WithReferences(assembliesToRef)
                 .WithImports(namepspaces)
-                .WithSourceResolver(resolver);
+                .WithSourceResolver(sourceResolver)
+                .WithMetadataResolver(metadataResolver);
             
             using (ScriptContext context = GetContext(source.FilePath))
             {
@@ -85,19 +93,19 @@ namespace Scripty.Core
                 {
                     await CSharpScript.EvaluateAsync(source.Code, options, context);
 
-                    foreach (var outputFile in context.Output.OutputFiles)
+                    foreach (IOutputFileInfo outputFile in context.Output.OutputFiles)
                     {
-                        (outputFile as OutputFile).Close();
+                        ((OutputFile) outputFile).Close();
 
                         if (outputFile.FormatterEnabled)
                         {
-                            var document = ProjectRoot.Analysis.AddDocument(outputFile.FilePath, File.ReadAllText(outputFile.FilePath));
+                            Document document = ProjectRoot.Analysis.AddDocument(outputFile.FilePath, File.ReadAllText(outputFile.FilePath));
                             
-                            var resultDocument = await Formatter.FormatAsync(
+                            Document resultDocument = await Formatter.FormatAsync(
                                 document,
                                 outputFile.FormatterOptions.Apply(ProjectRoot.Workspace.Options)
                             );
-                            var resultContent = await resultDocument.GetTextAsync();
+                            SourceText resultContent = await resultDocument.GetTextAsync();
 
                             File.WriteAllText(outputFile.FilePath, resultContent.ToString());
                         }
@@ -142,6 +150,48 @@ namespace Scripty.Core
             }
         }
 
+        private IEnumerable<string> ResolveSearchPaths()
+        {
+            ISettings s = new Settings("configuration", @"NuGet.Config");
+            string nugetBasePath = SettingsUtility.GetGlobalPackagesFolder(s);
+
+            yield return nugetBasePath;
+
+            if (this._projectFilePath != null && File.Exists(this._projectFilePath))
+            {                
+                XDocument proj = XDocument.Load(this._projectFilePath);
+                string baseProjectPath = Path.Combine(Path.GetDirectoryName(this._projectFilePath), "bin");
+
+                if (Directory.Exists(baseProjectPath))
+                {
+                    foreach (string target in Directory.EnumerateDirectories(baseProjectPath))
+                    {
+                        string projectTargetPath = Path.Combine(target, TargetFramework);
+                        if (Directory.Exists(projectTargetPath))
+                        {
+                            yield return projectTargetPath;
+                        }
+                    }
+                }
+                
+                foreach (XElement nuget in proj.Descendants("PackageReference"))
+                {
+                    string assembly = nuget.Attribute("Include")?.Value;
+                    string version = nuget.Attribute("Version")?.Value;
+                    string nugetPath = Path.Combine(nugetBasePath, assembly, version, "lib");
+
+                    if (Directory.Exists(nugetPath))
+                    {
+                        string nugetDllPath;
+                        if ((nugetDllPath = ResolveDllPath(nugetPath, TargetFramework, assembly)) != null)
+                        {
+                            yield return nugetDllPath;
+                        }
+                    }
+                }
+            }
+        }
+
         private ScriptContext GetContext(string scriptFilePath)
         {
             if (scriptFilePath == null)
@@ -151,5 +201,29 @@ namespace Scripty.Core
 
             return new ScriptContext(scriptFilePath, _projectFilePath, ProjectRoot);
         }
+
+        private static string ResolveDllPath(string nugetPath, string targetFramework, string assembly)
+        {
+            IEnumerable<string> targetFrameworks =
+                Directory.EnumerateDirectories(nugetPath).Select(Path.GetFileName).ToArray();
+
+            foreach (string framework in targetFrameworks)
+            {
+                if (Regex.IsMatch(framework, $"(^|\\+){targetFramework}($|\\+)"))
+                {
+                    return Path.Combine(nugetPath, framework);
+                }
+            }
+
+            int index = Array.IndexOf(Frameworks, targetFramework);
+            if (index > 0)
+            {
+                return ResolveDllPath(nugetPath, Frameworks[index - 1], assembly);
+            }
+            
+            return null;
+        }
+        
+        private static readonly string[] Frameworks = { "net11", "net20", "net35", "net40", "net403", "net45", "net451", "net452", "net46", "net461", "net462", "net47", "net471", "net472" };
     }
 }

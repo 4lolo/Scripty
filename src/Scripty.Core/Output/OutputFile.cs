@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Options;
 
 namespace Scripty.Core.Output
 {

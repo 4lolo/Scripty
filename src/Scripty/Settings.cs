@@ -1,23 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace Scripty
 {
     public class Settings
     {
-        public string ProjectFilePath = null;
-        public string SolutionFilePath = null;
-        public IReadOnlyList<string> ScriptFilePaths = null;
-        public IReadOnlyDictionary<string, string> Properties = null;
-        public bool Attach = false;
-        public bool MessagesEnabled = false;
-		    public IReadOnlyDictionary<string, string> CustomProperties = null;
+        public string ProjectFilePath;
+        public string SolutionFilePath;
+        public IReadOnlyList<string> ScriptFilePaths;
+        public IReadOnlyDictionary<string, string> Properties;
+        public bool Attach;
+        public bool MessagesEnabled;
+        public IReadOnlyDictionary<string, string> CustomProperties = null;
       
-        private IReadOnlyList<KeyValuePair<string, string>> _properties = null;
+        private IReadOnlyList<KeyValuePair<string, string>> _properties;
 
         public bool ParseArgs(string[] args, out bool hasErrors)
         {

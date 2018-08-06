@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis.Options;
-
 namespace Scripty.Core.Output
 {
     public interface IOutputFileInfo

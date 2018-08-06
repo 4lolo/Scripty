@@ -12,14 +12,9 @@ namespace Scripty.Core.ProjectTree
         private readonly string _solutionFilePath;
         private readonly Dictionary<string, string> _properties;
         private MSBuildWorkspace _workspace;
-        private Microsoft.CodeAnalysis.Project _analysisProject;
+        private Project _analysisProject;
         private Microsoft.Build.Evaluation.Project _buildProject;
         private bool _generatedTree;
-
-        public ProjectRoot(string filePath)
-            : this(filePath, null, null, null)
-        {
-        }
 
         public ProjectRoot(string projectFilePath, string solutionFilePath,
                     IReadOnlyDictionary<string, string> properties,
@@ -35,7 +30,7 @@ namespace Scripty.Core.ProjectTree
             // that is what the MSBuildWorkspace will require.
             if (properties != null)
             {
-                foreach (var pair in properties)
+                foreach (KeyValuePair<string, string> pair in properties)
                 {
                     _properties[pair.Key] = pair.Value;
                 }
@@ -45,7 +40,7 @@ namespace Scripty.Core.ProjectTree
 
             if (customProperties != null)
             {
-                foreach (var pair in customProperties)
+                foreach (KeyValuePair<string, string> pair in customProperties)
                 {
                     CustomProperties[pair.Key] = pair.Value;
                 }
@@ -71,7 +66,7 @@ namespace Scripty.Core.ProjectTree
             }
         }
 
-        public Microsoft.CodeAnalysis.Project Analysis
+        public Project Analysis
         {
             get
             {
