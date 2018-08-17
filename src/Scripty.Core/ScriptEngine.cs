@@ -65,8 +65,7 @@ namespace Scripty.Core
             {
                 "System",
                 "Scripty.Core",
-                "Scripty.Core.Output",
-                "Scripty.Core.ProjectTree"
+                "Scripty.Core.Output"
             };
 
             ScriptOptions options = ScriptOptions.Default
