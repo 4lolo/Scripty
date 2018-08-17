@@ -7,12 +7,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
-using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Scripting;
-using Microsoft.CodeAnalysis.Text;
 using NuGet.Configuration;
 using Scripty.Core.Output;
-using Scripty.Core.ProjectTree;
 using Scripty.Core.Resolvers;
 
 namespace Scripty.Core
@@ -47,10 +44,7 @@ namespace Scripty.Core
             }
 
             _projectFilePath = projectFilePath;
-            ProjectRoot = new ProjectRoot(projectFilePath, solutionFilePath, properties, customProperties);
         }
-
-        public ProjectRoot ProjectRoot { get; }
 
         public async Task<ScriptResult> Evaluate(ScriptSource source)
         {
@@ -91,19 +85,6 @@ namespace Scripty.Core
                     foreach (IOutputFileInfo outputFile in context.Output.OutputFiles)
                     {
                         ((OutputFile) outputFile).Close();
-
-                        if (outputFile.FormatterEnabled)
-                        {
-                            Document document = ProjectRoot.Analysis.AddDocument(outputFile.FilePath, File.ReadAllText(outputFile.FilePath));
-                            
-                            Document resultDocument = await Formatter.FormatAsync(
-                                document,
-                                outputFile.FormatterOptions.Apply(ProjectRoot.Workspace.Options)
-                            );
-                            SourceText resultContent = await resultDocument.GetTextAsync();
-
-                            File.WriteAllText(outputFile.FilePath, resultContent.ToString());
-                        }
                     }
                 }
                 catch (CompilationErrorException compilationError)
@@ -186,7 +167,7 @@ namespace Scripty.Core
                 throw new ArgumentNullException(nameof(scriptFilePath));
             }
 
-            return new ScriptContext(scriptFilePath, _projectFilePath, ProjectRoot);
+            return new ScriptContext(scriptFilePath, _projectFilePath);
         }
 
         private static string ResolveDllPath(string nugetPath, string targetFramework)

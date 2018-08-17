@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Scripty.Core;
 using Scripty.Core.Output;
-using Scripty.Core.ProjectTree;
 
 namespace Scripty
 {
@@ -109,7 +108,6 @@ namespace Scripty
                 // Look for any .csx files in the project
                 Console.WriteLine("No script files were specified, scanning project for .csx files");
                 List<string> scriptFilePaths = new List<string>();
-                PopulateScriptFilePaths(engine.ProjectRoot, scriptFilePaths);
                 finalScriptFilePaths = scriptFilePaths;
             }
             
@@ -165,18 +163,6 @@ namespace Scripty
             }
 
             return (int) ExitCode.Normal;
-        }
-
-        private void PopulateScriptFilePaths(ProjectNode node, List<string> scriptFilePaths)
-        {
-            foreach (KeyValuePair<string, ProjectNode> child in node.Children)
-            {
-                if (Path.GetExtension(child.Key) == ".csx")
-                {
-                    scriptFilePaths.Add(child.Key);
-                }
-                PopulateScriptFilePaths(child.Value, scriptFilePaths);
-            }
         }
     }
 }

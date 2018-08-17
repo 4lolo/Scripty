@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using Scripty.Core.Output;
-using Scripty.Core.ProjectTree;
 using System.Collections.Generic;
 
 namespace Scripty.Core
@@ -10,7 +9,7 @@ namespace Scripty.Core
     {
         private List<ScriptMessage> _messages = new List<ScriptMessage>();
 
-        internal ScriptContext(string scriptFilePath, string projectFilePath, ProjectRoot projectRoot)
+        internal ScriptContext(string scriptFilePath, string projectFilePath)
         {
             if (string.IsNullOrEmpty(scriptFilePath))
             {
@@ -23,7 +22,6 @@ namespace Scripty.Core
 
             ScriptFilePath = scriptFilePath;
             ProjectFilePath = projectFilePath;
-            Project = projectRoot;
             Output = new OutputFileCollection(scriptFilePath);
             Log = new Logger(_messages);
         }
@@ -38,8 +36,6 @@ namespace Scripty.Core
         public string ScriptFilePath { get; }
 
         public string ProjectFilePath { get; }
-
-        public ProjectRoot Project { get; }
 
         public OutputFileCollection Output { get; }
 
