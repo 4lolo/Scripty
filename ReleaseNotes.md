@@ -1,3 +1,7 @@
+# 0.7.8
+
+- [Fix] Invalid using directives
+
 # 0.7.7
 
 - [Feature] Enhanced #r directive to support installed nugets
