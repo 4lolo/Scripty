@@ -1,4 +1,7 @@
-﻿namespace Scripty.Core.Resolvers
+using System.Text;
+using Scripty.Core.Tools;
+
+namespace Scripty.Core.Resolvers
 {
     using System;
     using System.Collections.Generic;
@@ -22,7 +25,6 @@
     /// </remarks>
     public class InterceptDirectiveResolver : SourceReferenceResolver
     {
-
         #region "fields"
 
         private readonly Dictionary<string, SourceText> _rewrittenSources = new Dictionary<string, SourceText>(StringComparer.OrdinalIgnoreCase);
@@ -109,7 +111,11 @@
             ResolutionTargetType candidateType = GetResolutionTargetType(resolvedPath);
             if (candidateType != ResolutionTargetType.Cs)
             {
-                return _sourceFileResolver.OpenRead(resolvedPath);
+                StringBuilder source = new StringBuilder();
+                SourceProcessor.ReadSource(resolvedPath, source, null);
+                
+                return new MemoryStream(Encoding.UTF8.GetBytes(source.ToString()));
+                // return _sourceFileResolver.OpenRead(resolvedPath);
             }
 
             if (_rewrittenSources.ContainsKey(resolvedPath))
@@ -203,9 +209,5 @@
         }
 
         #endregion #region "equality members"
-
-
     }
-
-
 }

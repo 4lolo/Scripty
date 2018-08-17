@@ -5,19 +5,12 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.CodeAnalysis.Text;
 using NuGet.Configuration;
-using NuGet.PackageManagement;
-using NuGet.Packaging;
-using NuGet.Packaging.Core;
-using NuGet.Protocol;
-using NuGet.Protocol.Core.Types;
-using NuGet.Versioning;
 using Scripty.Core.Output;
 using Scripty.Core.ProjectTree;
 using Scripty.Core.Resolvers;
@@ -61,8 +54,10 @@ namespace Scripty.Core
 
         public async Task<ScriptResult> Evaluate(ScriptSource source)
         {
-            ScriptMetadataResolver metadataResolver = ScriptMetadataResolver.Default
-                .WithSearchPaths(this.ResolveSearchPaths());
+            MetadataReferenceResolver metadataResolver = new CustomMetadataReferenceResolver(
+                ScriptMetadataResolver.Default.WithSearchPaths(this.ResolveSearchPaths(source))                
+            );
+            
             InterceptDirectiveResolver sourceResolver = new InterceptDirectiveResolver();
             List<Assembly> assembliesToRef = new List<Assembly>
             {
@@ -150,42 +145,35 @@ namespace Scripty.Core
             }
         }
 
-        private IEnumerable<string> ResolveSearchPaths()
+        private IEnumerable<string> ResolveSearchPaths(ScriptSource source)
         {
             string nugetBasePath = SettingsUtility.GetGlobalPackagesFolder(new NullSettings());
 
             yield return nugetBasePath;
 
-            if (this._projectFilePath != null && File.Exists(this._projectFilePath))
-            {                
-                XDocument proj = XDocument.Load(this._projectFilePath);
-                string baseProjectPath = Path.Combine(Path.GetDirectoryName(this._projectFilePath), "bin");
+            foreach (AssemblyName dependency in source.Dependencies.Where(d => d.Version != null))
+            {
+                string nugetPath = Path.Combine(nugetBasePath, dependency.Name, dependency.Version.ToString(3), "lib");
 
-                if (Directory.Exists(baseProjectPath))
+                if (Directory.Exists(nugetPath))
                 {
-                    foreach (string target in Directory.EnumerateDirectories(baseProjectPath))
+                    string nugetDllPath;
+                    if ((nugetDllPath = ResolveDllPath(nugetPath, TargetFramework)) != null)
                     {
-                        string projectTargetPath = Path.Combine(target, TargetFramework);
-                        if (Directory.Exists(projectTargetPath))
-                        {
-                            yield return projectTargetPath;
-                        }
+                        yield return nugetDllPath;
                     }
                 }
-                
-                foreach (XElement nuget in proj.Descendants("PackageReference"))
+            }
+            
+            string baseProjectPath = Path.Combine(Path.GetDirectoryName(this._projectFilePath), "bin");
+            if (Directory.Exists(baseProjectPath))
+            {
+                foreach (string target in Directory.EnumerateDirectories(baseProjectPath))
                 {
-                    string assembly = nuget.Attribute("Include")?.Value;
-                    string version = nuget.Attribute("Version")?.Value;
-                    string nugetPath = Path.Combine(nugetBasePath, assembly, version, "lib");
-
-                    if (Directory.Exists(nugetPath))
+                    string projectTargetPath = Path.Combine(target, TargetFramework);
+                    if (Directory.Exists(projectTargetPath))
                     {
-                        string nugetDllPath;
-                        if ((nugetDllPath = ResolveDllPath(nugetPath, TargetFramework, assembly)) != null)
-                        {
-                            yield return nugetDllPath;
-                        }
+                        yield return projectTargetPath;
                     }
                 }
             }
@@ -201,7 +189,7 @@ namespace Scripty.Core
             return new ScriptContext(scriptFilePath, _projectFilePath, ProjectRoot);
         }
 
-        private static string ResolveDllPath(string nugetPath, string targetFramework, string assembly)
+        private static string ResolveDllPath(string nugetPath, string targetFramework)
         {
             IEnumerable<string> targetFrameworks =
                 Directory.EnumerateDirectories(nugetPath).Select(Path.GetFileName).ToArray();
@@ -217,7 +205,7 @@ namespace Scripty.Core
             int index = Array.IndexOf(Frameworks, targetFramework);
             if (index > 0)
             {
-                return ResolveDllPath(nugetPath, Frameworks[index - 1], assembly);
+                return ResolveDllPath(nugetPath, Frameworks[index - 1]);
             }
             
             return null;

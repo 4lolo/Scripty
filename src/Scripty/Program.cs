@@ -124,7 +124,7 @@ namespace Scripty
                     if (File.Exists(x))
                     {
                         Console.WriteLine($"Adding task to evaluate {x}");
-                        tasks.Add(engine.Evaluate(new ScriptSource(x, File.ReadAllText(x))));
+                        tasks.Add(engine.Evaluate(new ScriptSource(x)));
                     }
                 });
 

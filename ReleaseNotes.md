@@ -1,3 +1,7 @@
+# 0.7.7
+
+- [Feature] Enhanced #r directive to support installed nugets
+
 # 0.7.6
 
 - [Fix] Nuget config was created during generation
